@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Окно выплат</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── CSS переменные Telegram + свои ── */
+    :root {
+      --bg:      var(--tg-theme-bg-color, #ffffff);
+      --text:    var(--tg-theme-text-color, #000000);
+      --hint:    var(--tg-theme-hint-color, #999999);
+      --link:    var(--tg-theme-link-color, #2481cc);
+      --btn:     var(--tg-theme-button-color, #2481cc);
+      --btn-txt: var(--tg-theme-button-text-color, #ffffff);
+      --section: var(--tg-theme-secondary-bg-color, #f4f4f4);
+      --radius:  12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.4;
+      padding-bottom: 32px;
+    }
+
+    /* ── Шапка ── */
+    .header {
+      padding: 20px 16px 12px;
+      border-bottom: 1px solid var(--section);
+    }
+    .header-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .header-window {
+      font-size: 13px;
+      color: var(--hint);
+      margin-top: 4px;
+    }
+    .window-badge {
+      display: inline-block;
+      background: var(--btn);
+      color: var(--btn-txt);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-right: 6px;
+    }
+
+    /* ── Категория продуктов ── */
+    .category {
+      padding: 16px 16px 4px;
+    }
+    .category-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Карточка продукта ── */
+    .product-list {
+      padding: 4px 16px 0;
+    }
+    .product-card {
+      background: var(--section);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .product-icon {
+      font-size: 22px;
+      width: 36px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .product-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .product-name {
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .product-status {
+      font-size: 13px;
+      color: var(--hint);
+      margin-top: 2px;
+    }
+    .product-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary {
+      background: var(--btn);
+      color: var(--btn-txt);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--btn);
+      border: 1.5px solid var(--btn);
+    }
+    .btn-disabled {
+      background: var(--section);
+      color: var(--hint);
+      cursor: default;
+    }
+    .btn-success {
+      background: #27ae60;
+      color: #fff;
+    }
+
+    /* ── Статус-бейдж ── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    .badge-none      { background: #eee; color: #888; }
+    .badge-applied   { background: #dbeafe; color: #1d4ed8; }
+    .badge-received  { background: #ede9fe; color: #6d28d9; }
+    .badge-cd_pending   { background: #fef3c7; color: #b45309; }
+    .badge-cd_done      { background: #d1fae5; color: #065f46; }
+    .badge-cd_rejected  { background: #fee2e2; color: #b91c1c; }
+    .badge-payout_requested { background: #fef9c3; color: #92400e; }
+    .badge-paid      { background: #d1fae5; color: #065f46; }
+
+    /* ── Инструкция отправки скрина ── */
+    .tip {
+      background: var(--section);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin: 8px 16px 0;
+      font-size: 13px;
+      color: var(--hint);
+      line-height: 1.5;
+    }
+    .tip code {
+      background: rgba(0,0,0,0.07);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    /* ── Лоадер ── */
+    .loader {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 60vh;
+      font-size: 13px;
+      color: var(--hint);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div id="loader" class="loader">Загрузка...</div>
+<div id="app" class="hidden"></div>
+
+<script>
+// ── Иконки по категориям ──────────────────────────────────────────────
+const CATEGORY_ICONS = {
+  "Дебетовая": "💳",
+  "ИП на НПД": "🏢",
+  "Кредитная": "💎",
+  "Р/с":       "🏦",
+};
+
+// ── Статусы ───────────────────────────────────────────────────────────
+const STATUS_LABELS = {
+  none:              { label: "Не начат",          badge: "badge-none" },
+  applied:           { label: "Заявка оформлена",  badge: "badge-applied" },
+  received:          { label: "Карта получена",    badge: "badge-received" },
+  cd_pending:        { label: "ЦД на проверке",    badge: "badge-cd_pending" },
+  cd_done:           { label: "ЦД подтверждено",   badge: "badge-cd_done" },
+  cd_rejected:       { label: "ЦД отклонено",      badge: "badge-cd_rejected" },
+  payout_requested:  { label: "Выплата запрошена", badge: "badge-payout_requested" },
+  paid:              { label: "Выплачено",          badge: "badge-paid" },
+};
+
+// ── Глобальный стейт ─────────────────────────────────────────────────
+let userData = null;
+let windowData = null;
+let products = [];
+
+// ── Инициализация Telegram WebApp ────────────────────────────────────
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const tgUser = tg.initDataUnsafe?.user || {};
+
+// ── Загрузка данных с сервера ────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch("/api/user", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tg_id:       tgUser.id || 0,
+        tg_username: tgUser.username || "",
+        tg_name:     tgUser.first_name || "Пользователь",
+      }),
+    });
+
+    const data = await res.json();
+    userData   = data.user;
+    products   = data.products;
+    windowData = data.window;
+
+    render();
+  } catch (e) {
+    document.getElementById("loader").textContent = "Ошибка загрузки. Попробуй снова.";
+  }
+}
+
+// ── Запросить выплату ────────────────────────────────────────────────
+async function requestPayout(product_id) {
+  const res = await fetch("/api/payout/request", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tg_id: tgUser.id, product_id }),
+  });
+
+  const data = await res.json();
+  if (data.ok) {
+    tg.showAlert(`💰 Выплата запрошена!\n\nОкно: ${data.window}\nОжидай выплату по окончании окна.`);
+    await loadData(); // Обновляем данные
+  }
+}
+
+// ── Группируем продукты по категориям ───────────────────────────────
+function groupByCategory(products) {
+  const groups = {};
+  for (const p of products) {
+    if (!groups[p.category]) groups[p.category] = [];
+    groups[p.category].push(p);
+  }
+  return groups;
+}
+
+// ── Рендер кнопок действий для продукта ─────────────────────────────
+function renderActions(product) {
+  const s = product.status;
+
+  // Подсказка как отправить скрин
+  const makeCode = (action) => `<code>${action}:${product.id}</code>`;
+
+  if (s === "none") {
+    return `
+      <div class="tip">
+        Отправь скрин заявки боту с подписью ${makeCode("applied")}
+      </div>`;
+  }
+
+  if (s === "applied") {
+    return `
+      <div class="tip">
+        Получил карту? Отправь скрин с подписью ${makeCode("received")}
+      </div>`;
+  }
+
+  if (s === "received") {
+    return `
+      <div class="tip">
+        ЦД выполнено? Отправь скрин с подписью ${makeCode("cd")}
+      </div>`;
+  }
+
+  if (s === "cd_pending") {
+    return `<div class="tip">⏳ Ждём подтверждения от админа</div>`;
+  }
+
+  if (s === "cd_rejected") {
+    return `
+      <div class="tip">
+        ЦД отклонено. Исправь и отправь скрин снова с подписью ${makeCode("cd")}
+      </div>`;
+  }
+
+  if (s === "cd_done") {
+    return `
+      <div class="product-actions">
+        <button class="btn btn-success" onclick="requestPayout(${product.id})">
+          💰 Запросить выплату
+        </button>
+      </div>`;
+  }
+
+  if (s === "payout_requested") {
+    return `<div class="tip">✅ Выплата в очереди. Окно: ${windowData?.range}</div>`;
+  }
+
+  if (s === "paid") {
+    return `<div class="tip">🎉 Выплата получена!</div>`;
+  }
+
+  return "";
+}
+
+// ── Основной рендер ──────────────────────────────────────────────────
+function render() {
+  const groups = groupByCategory(products);
+  const name   = tgUser.first_name || userData?.tg_name || "Привет";
+
+  let html = `
+    <div class="header">
+      <div class="header-name">${name}</div>
+      <div class="header-window">
+        <span class="window-badge">#${windowData?.number}</span>
+        ${windowData?.range}
+      </div>
+    </div>
+  `;
+
+  // Порядок категорий
+  const order = ["Дебетовая", "ИП на НПД", "Кредитная", "Р/с"];
+
+  for (const cat of order) {
+    if (!groups[cat]) continue;
+
+    html += `
+      <div class="category">
+        <div class="category-title">${cat}</div>
+      </div>
+      <div class="product-list">
+    `;
+
+    for (const product of groups[cat]) {
+      const statusInfo = STATUS_LABELS[product.status] || STATUS_LABELS.none;
+      const icon       = CATEGORY_ICONS[cat] || "📦";
+
+      html += `
+        <div class="product-card">
+          <div class="product-icon">${icon}</div>
+          <div class="product-info">
+            <div class="product-name">${product.name}</div>
+            <div class="product-status">
+              <span class="status-badge ${statusInfo.badge}">${statusInfo.label}</span>
+            </div>
+          </div>
+        </div>
+        ${renderActions(product)}
+      `;
+    }
+
+    html += `</div>`;
+  }
+
+  document.getElementById("loader").classList.add("hidden");
+  const app = document.getElementById("app");
+  app.innerHTML = html;
+  app.classList.remove("hidden");
+}
+
+// ── Старт ────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>

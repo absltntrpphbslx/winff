@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Админка — Окно выплат</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg:      var(--tg-theme-bg-color, #ffffff);
+      --text:    var(--tg-theme-text-color, #000000);
+      --hint:    var(--tg-theme-hint-color, #999999);
+      --btn:     var(--tg-theme-button-color, #2481cc);
+      --btn-txt: var(--tg-theme-button-text-color, #ffffff);
+      --section: var(--tg-theme-secondary-bg-color, #f4f4f4);
+      --radius:  12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      padding-bottom: 32px;
+    }
+
+    /* Шапка */
+    .header {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--section);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-title { font-size: 18px; font-weight: 700; }
+    .header-badge {
+      background: var(--btn);
+      color: var(--btn-txt);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* Вкладки */
+    .tabs {
+      display: flex;
+      padding: 12px 16px 0;
+      gap: 8px;
+      border-bottom: 1px solid var(--section);
+    }
+    .tab {
+      padding: 8px 16px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: var(--section);
+      color: var(--hint);
+    }
+    .tab.active {
+      background: var(--btn);
+      color: var(--btn-txt);
+    }
+
+    /* Контент */
+    .tab-content { padding: 16px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Карточка участника */
+    .user-card {
+      background: var(--section);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .user-name {
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .user-meta {
+      font-size: 12px;
+      color: var(--hint);
+      margin-top: 2px;
+    }
+    .products-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .product-chip {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    /* Заявки на выплату */
+    .payout-card {
+      background: var(--section);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .payout-info { flex: 1; }
+    .payout-name { font-weight: 600; }
+    .payout-product { font-size: 13px; color: var(--hint); margin-top: 2px; }
+
+    .btn-pay {
+      border: none;
+      background: #27ae60;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-paid {
+      border: none;
+      background: var(--section);
+      color: var(--hint);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: default;
+      flex-shrink: 0;
+    }
+
+    /* Цвета чипов */
+    .chip-none      { background: #eee;     color: #888; }
+    .chip-applied   { background: #dbeafe;  color: #1d4ed8; }
+    .chip-received  { background: #ede9fe;  color: #6d28d9; }
+    .chip-cd_pending   { background: #fef3c7; color: #b45309; }
+    .chip-cd_done      { background: #d1fae5; color: #065f46; }
+    .chip-cd_rejected  { background: #fee2e2; color: #b91c1c; }
+    .chip-payout_requested { background: #fef9c3; color: #92400e; }
+    .chip-paid      { background: #d1fae5;  color: #065f46; }
+
+    .window-info {
+      font-size: 13px;
+      color: var(--hint);
+      margin-bottom: 12px;
+    }
+    .window-num {
+      font-weight: 700;
+      color: var(--btn);
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--hint);
+      padding: 32px 0;
+      font-size: 13px;
+    }
+
+    .loader { text-align: center; padding: 40px; color: var(--hint); font-size: 13px; }
+    .access-denied { text-align: center; padding: 60px 20px; color: var(--hint); }
+    .access-denied h2 { color: var(--text); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<div id="root"><div class="loader">Загрузка...</div></div>
+
+<script>
+const tg     = window.Telegram.WebApp;
+const tgUser = tg.initDataUnsafe?.user || {};
+tg.ready();
+tg.expand();
+
+let windowInfo = null;
+let payouts    = [];
+let users      = [];
+
+// ── Проверяем доступ ──────────────────────────────────────────────────
+async function init() {
+  const res  = await fetch(`/api/admin/check/${tgUser.id}`);
+  const data = await res.json();
+
+  if (!data.isAdmin) {
+    document.getElementById("root").innerHTML = `
+      <div class="access-denied">
+        <h2>Нет доступа</h2>
+        <p>Эта страница только для администратора</p>
+      </div>`;
+    return;
+  }
+
+  await Promise.all([loadUsers(), loadPayouts()]);
+  render();
+}
+
+async function loadUsers() {
+  const res  = await fetch(`/api/admin/users/${tgUser.id}`);
+  const data = await res.json();
+  users = data.users || [];
+}
+
+async function loadPayouts() {
+  const res  = await fetch(`/api/admin/payouts/${tgUser.id}`);
+  const data = await res.json();
+  payouts    = data.payouts   || [];
+  windowInfo = data.window;
+}
+
+async function markPaid(request_id, btn) {
+  btn.disabled    = true;
+  btn.textContent = "...";
+
+  await fetch("/api/admin/pay", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tg_id: tgUser.id, request_id }),
+  });
+
+  await loadPayouts();
+  renderPayouts();
+}
+
+// ── Переключение вкладок ──────────────────────────────────────────────
+function switchTab(tabName) {
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === tabName));
+  document.querySelectorAll(".tab-panel").forEach(p =>
+    p.classList.toggle("active", p.id === "panel-" + tabName));
+}
+
+// ── Статус → цвет чипа ───────────────────────────────────────────────
+const STATUS_LABELS = {
+  none:             "Не начат",
+  applied:          "Заявка",
+  received:         "Карта",
+  cd_pending:       "ЦД ⏳",
+  cd_done:          "ЦД ✅",
+  cd_rejected:      "ЦД ❌",
+  payout_requested: "Выплата 💰",
+  paid:             "Выплачено",
+};
+
+function renderPayouts() {
+  const el = document.getElementById("panel-payouts");
+  if (!el) return;
+
+  let html = `
+    <div class="window-info">
+      Окно <span class="window-num">#${windowInfo?.number}</span> — ${windowInfo?.range}
+    </div>`;
+
+  if (payouts.length === 0) {
+    html += `<div class="empty">Заявок на выплату пока нет</div>`;
+  } else {
+    for (const p of payouts) {
+      const isPaid = p.status === "paid";
+      html += `
+        <div class="payout-card">
+          <div class="payout-info">
+            <div class="payout-name">${p.tg_name} ${p.tg_username ? "@" + p.tg_username : ""}</div>
+            <div class="payout-product">Продукт ID: ${p.product_id}</div>
+          </div>
+          ${isPaid
+            ? `<button class="btn-paid">Выплачено</button>`
+            : `<button class="btn-pay" onclick="markPaid(${p.id}, this)">Выплатить</button>`}
+        </div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Основной рендер ───────────────────────────────────────────────────
+function render() {
+  // Участники
+  let usersHtml = "";
+  if (users.length === 0) {
+    usersHtml = `<div class="empty">Нет участников</div>`;
+  } else {
+    for (const u of users) {
+      const chips = u.products
+        .filter(p => p.status !== "none")
+        .map(p => `<span class="product-chip chip-${p.status}">${p.category} ${p.name}</span>`)
+        .join("");
+
+      usersHtml += `
+        <div class="user-card">
+          <div class="user-name">${u.tg_name}</div>
+          <div class="user-meta">@${u.tg_username || "—"}</div>
+          <div class="products-grid">${chips || "<span style='color:var(--hint);font-size:12px'>Нет активных продуктов</span>"}</div>
+        </div>`;
+    }
+  }
+
+  // Выплаты (строим строку отдельно)
+  let payoutsHtml = `
+    <div class="window-info">
+      Окно <span class="window-num">#${windowInfo?.number}</span> — ${windowInfo?.range}
+    </div>`;
+
+  if (payouts.length === 0) {
+    payoutsHtml += `<div class="empty">Заявок на выплату пока нет</div>`;
+  } else {
+    for (const p of payouts) {
+      const isPaid = p.status === "paid";
+      payoutsHtml += `
+        <div class="payout-card">
+          <div class="payout-info">
+            <div class="payout-name">${p.tg_name} ${p.tg_username ? "@" + p.tg_username : ""}</div>
+            <div class="payout-product">Продукт ID: ${p.product_id}</div>
+          </div>
+          ${isPaid
+            ? `<button class="btn-paid">Выплачено</button>`
+            : `<button class="btn-pay" onclick="markPaid(${p.id}, this)">Выплатить</button>`}
+        </div>`;
+    }
+  }
+
+  document.getElementById("root").innerHTML = `
+    <div class="header">
+      <div class="header-title">Админ</div>
+      <div class="header-badge">Окно #${windowInfo?.number}</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="payouts" onclick="switchTab('payouts')">
+        💰 Выплаты
+      </button>
+      <button class="tab" data-tab="users" onclick="switchTab('users')">
+        👥 Участники
+      </button>
+    </div>
+
+    <div class="tab-content">
+      <div class="tab-panel active" id="panel-payouts">${payoutsHtml}</div>
+      <div class="tab-panel"        id="panel-users">${usersHtml}</div>
+    </div>
+  `;
+}
+
+init();
+</script>
+</body>
+</html>
