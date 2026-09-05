@@ -39,10 +39,17 @@ async function sendTextToAdmin(text) {
 // Утилита: отправить текст в группу (если GROUP_ID задан)
 async function sendTextToGroup(text) {
   if (!process.env.GROUP_ID) return;
+  const body = {
+    chat_id:    process.env.GROUP_ID,
+    text,
+    parse_mode: "HTML",
+  };
+  if (process.env.GROUP_THREAD_ID) body.message_thread_id = parseInt(process.env.GROUP_THREAD_ID);
+
   await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: process.env.GROUP_ID, text, parse_mode: "HTML" }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -54,6 +61,7 @@ async function sendPhotoToGroup(buffer, filename, caption) {
   formData.set("caption", caption);
   formData.set("parse_mode", "HTML");
   formData.set("photo", new Blob([buffer], { type: "image/jpeg" }), filename || "screenshot.jpg");
+  if (process.env.GROUP_THREAD_ID) formData.set("message_thread_id", process.env.GROUP_THREAD_ID);
   await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendPhoto`, { method: "POST", body: formData });
 }
 
@@ -93,7 +101,7 @@ app.post("/api/status", (req, res) => {
   db.updateProductStatus({ user_id: user.id, product_id: parseInt(product_id), status });
 
   // Уведомляем админа и группу
-  const labels = { applied: "📝 Оформил заявку", received: "💳 Получил карту" };
+  const labels = { applied: "📝 Оформил заявку", received: "💳 Получил карту", declined: "❌ Отказ банка" };
   if (labels[status] && product) {
     const text = `${labels[status]}\n👤 <b>${user.tg_name}</b> (@${user.tg_username || "—"})\n📦 ${product.category} ${product.name}`;
     sendTextToAdmin(text);

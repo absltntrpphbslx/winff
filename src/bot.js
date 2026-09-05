@@ -130,10 +130,13 @@ bot.callbackQuery(/^cd_(approve|reject):(\d+)$/, async (ctx) => {
       );
       // Уведомляем группу
       if (GROUP_ID) {
-        await bot.api.sendMessage(GROUP_ID,
-          `✅ <b>ЦД подтверждено</b>\n👤 ${user.tg_name}${user.tg_username ? ` @${user.tg_username}` : ""}\n📦 ${product?.category} ${product?.name}`,
-          { parse_mode: "HTML" }
-        );
+        const groupMsg = {
+          chat_id:    GROUP_ID,
+          text:       `✅ <b>ЦД подтверждено</b>\n👤 ${user.tg_name}${user.tg_username ? ` @${user.tg_username}` : ""}\n📦 ${product?.category} ${product?.name}`,
+          parse_mode: "HTML",
+        };
+        if (process.env.GROUP_THREAD_ID) groupMsg.message_thread_id = parseInt(process.env.GROUP_THREAD_ID);
+        await bot.api.raw.sendMessage(groupMsg);
       }
     } else {
       await bot.api.sendMessage(user.tg_id,
@@ -198,7 +201,13 @@ cron.schedule("0 18 * * *", async () => {
     `Итого: <b>${db.getPayoutsByWindow(win.number).filter(p => p.status === "pending").length}</b> выплат`;
 
   if (GROUP_ID) {
-    await bot.api.sendMessage(GROUP_ID, groupText, { parse_mode: "HTML" });
+    const groupMsg = {
+      chat_id:    GROUP_ID,
+      text:       groupText,
+      parse_mode: "HTML",
+    };
+    if (process.env.GROUP_THREAD_ID) groupMsg.message_thread_id = parseInt(process.env.GROUP_THREAD_ID);
+    await bot.api.raw.sendMessage(groupMsg);
   }
 
   // Сообщение для админа — с кнопками "Выплатил"

@@ -72,6 +72,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .p-payout_requested{background:#fef9c3;color:#92400e}
 .p-paid{background:#d1fae5;color:#065f46}
 .p-owned{background:#e8e8e8;color:#888}
+.p-declined{background:#fee2e2;color:#b91c1c}
 
 /* ── "Уже есть" секция ── */
 .owned-toggle{display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--hint);font-size:14px;cursor:pointer}
@@ -111,6 +112,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-secondary{width:100%;padding:12px;background:var(--sec);color:var(--text);border:none;border-radius:var(--r);font-size:14px;cursor:pointer;transition:opacity .15s}
 .btn-secondary:active{opacity:.7}
 .btn-success{background:#27ae60}
+.btn-decline{width:100%;padding:11px;background:transparent;color:#e24b4a;border:1.5px solid #e24b4a;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;transition:opacity .15s}
+.btn-decline:active{opacity:.7}
 
 /* ── Предпросмотр фото ── */
 .photo-preview{width:100%;height:160px;object-fit:cover;border-radius:var(--r);margin-bottom:10px;display:block}
@@ -181,6 +184,7 @@ const STATUS = {
   payout_requested: { label:"Выплата запрошена",cls:"p-payout_requested" },
   paid:             { label:"Выплачено 🎉",      cls:"p-paid" },
   owned:            { label:"Уже есть",         cls:"p-owned" },
+  declined:         { label:"Отказ банка",      cls:"p-declined" },
 };
 
 // ── Инициализация ────────────────────────────────────────────────────
@@ -245,8 +249,9 @@ function showMain() {
 }
 
 function renderList() {
-  const active = state.products.filter(p => p.status !== "owned");
-  const owned  = state.products.filter(p => p.status === "owned");
+  const active   = state.products.filter(p => p.status !== "owned" && p.status !== "declined");
+  const owned    = state.products.filter(p => p.status === "owned");
+  const declined = state.products.filter(p => p.status === "declined");
   const order  = ["Дебетовая","ИП на НПД","Кредитная","Р/с"];
   const groups = byCategory(active);
   let html = "";
@@ -263,6 +268,24 @@ function renderList() {
           <span class="pill ${s.cls}">${s.label}</span>
         </div>
         <div class="prod-arrow">›</div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (declined.length) {
+    html += `
+      <div class="owned-toggle" id="declined-toggle" onclick="toggleDeclined()">
+        <span class="arrow">›</span> Отказ банка (${declined.length})
+      </div>
+      <div class="owned-cards hidden" id="declined-cards">`;
+    for (const p of declined) {
+      html += `<div class="prod-card owned">
+        <div class="prod-icon">${ICONS[p.category]||"📦"}</div>
+        <div class="prod-body">
+          <div class="prod-name">${p.name}</div>
+          <span class="pill p-declined">${p.category}</span>
+        </div>
       </div>`;
     }
     html += `</div>`;
@@ -288,6 +311,13 @@ function renderList() {
   document.getElementById("prod-list").innerHTML = html;
 }
 
+function toggleDeclined() {
+  const tog   = document.getElementById("declined-toggle");
+  const cards = document.getElementById("declined-cards");
+  tog.classList.toggle("open");
+  cards.classList.toggle("hidden");
+}
+
 function toggleOwned() {
   const tog   = document.getElementById("owned-toggle");
   const cards = document.getElementById("owned-cards");
@@ -298,7 +328,7 @@ function toggleOwned() {
 // ── Bottom Sheet ─────────────────────────────────────────────────────
 function openSheet(productId) {
   const p = state.products.find(x => x.id === productId);
-  if (!p || p.status === "owned") return;
+  if (!p || p.status === "owned" || p.status === "declined") return;
   state.activeId = productId;
   state.photoFile = null;
 
@@ -358,6 +388,11 @@ function renderSteps(p) {
   document.getElementById("sh-steps").innerHTML = html;
 }
 
+// Кнопка отказа — показывается на всех активных этапах кроме финальных
+function declineBtn() {
+  return `<button class="btn-decline" onclick="doDecline()">❌ Отказ банка</button>`;
+}
+
 // Кнопки действий
 function renderAction(p) {
   const el  = document.getElementById("sh-action");
@@ -367,24 +402,30 @@ function renderAction(p) {
     el.innerHTML = `
       <p class="action-hint">Оформи заявку и прикрепи скрин подтверждения</p>
       <div id="photo-area"></div>
-      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('applied')">📎 Прикрепить скрин заявки</button>`;
+      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('applied')">📎 Прикрепить скрин заявки</button>
+      ${declineBtn()}`;
   } else if (s === "applied") {
     el.innerHTML = `
       <p class="action-hint">Получи карту/счёт и прикрепи скрин</p>
       <div id="photo-area"></div>
-      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('received')">📎 Прикрепить скрин получения</button>`;
+      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('received')">📎 Прикрепить скрин получения</button>
+      ${declineBtn()}`;
   } else if (s === "received") {
     el.innerHTML = `
       <p class="action-hint">Выполни ЦД и прикрепи скрин подтверждения</p>
       <div id="photo-area"></div>
-      <button class="btn-action" onclick="triggerPhoto()">📎 Прикрепить скрин ЦД</button>`;
+      <button class="btn-action" onclick="triggerPhoto()">📎 Прикрепить скрин ЦД</button>
+      ${declineBtn()}`;
   } else if (s === "cd_pending") {
-    el.innerHTML = `<p class="action-hint" style="text-align:center;padding:12px 0">⏳ Ожидаем подтверждения от админа</p>`;
+    el.innerHTML = `
+      <p class="action-hint" style="text-align:center;padding:12px 0">⏳ Ожидаем подтверждения от админа</p>
+      ${declineBtn()}`;
   } else if (s === "cd_rejected") {
     el.innerHTML = `
       <p class="action-hint">ЦД отклонено. Исправь и загрузи новый скрин</p>
       <div id="photo-area"></div>
-      <button class="btn-action" onclick="triggerPhoto()">📎 Загрузить новый скрин</button>`;
+      <button class="btn-action" onclick="triggerPhoto()">📎 Загрузить новый скрин</button>
+      ${declineBtn()}`;
   } else if (s === "cd_done") {
     el.innerHTML = `
       <p class="action-hint">ЦД подтверждено ✅ Запроси выплату — она войдёт в окно ${state.win?.range}</p>
@@ -397,6 +438,17 @@ function renderAction(p) {
 }
 
 // ── Действия ─────────────────────────────────────────────────────────
+async function doDecline() {
+  tg.showConfirm("Отметить как отказ банка? Продукт будет заблокирован.", async (confirmed) => {
+    if (!confirmed) return;
+    await fetch("/api/status", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ tg_id: tgUser.id, product_id: state.activeId, status: "declined" }),
+    });
+    await reloadProducts();
+  });
+}
+
 async function doStatus(status) {
   const btn = document.querySelector("#sh-action .btn-action");
   if (btn) { btn.disabled = true; btn.textContent = "..."; }

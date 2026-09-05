@@ -1,11 +1,10 @@
-// Полный список продуктов по категориям
 const PRODUCTS = [
   // Дебетовые карты
   { id: 1, name: "Альфа",   category: "Дебетовая" },
   { id: 2, name: "Т-Банк",  category: "Дебетовая" },
   { id: 3, name: "VTB",     category: "Дебетовая" },
 
-  // ИП
+  // ИП на НПД
   { id: 4, name: "Т-Банк",  category: "ИП на НПД" },
 
   // Кредитные карты
@@ -15,21 +14,17 @@ const PRODUCTS = [
   { id: 8, name: "Т-Банк",  category: "Кредитная" },
 
   // Р/с счета
-  { id: 9,  name: "PSB",    category: "Р/с" },
-  { id: 10, name: "Альфа",  category: "Р/с" },
-  { id: 11, name: "VTB",    category: "Р/с" },
+  { id: 9,  name: "ВТБ",     category: "Р/с" },
+  { id: 10, name: "Альфа",   category: "Р/с" },
+  { id: 11, name: "Уралсиб", category: "Р/с" },
+  { id: 12, name: "БСПБ",    category: "Р/с" },
+  { id: 13, name: "Сбер",    category: "Р/с" },
+  { id: 14, name: "ПСБ",     category: "Р/с" },
+  { id: 15, name: "РК Барс", category: "Р/с" },
+  { id: 16, name: "Локо",    category: "Р/с" },
+  { id: 17, name: "Озон",    category: "Р/с" },
+  { id: 18, name: "УБРИР",   category: "Р/с" },
+  { id: 19, name: "Точка",   category: "Р/с" },
 ];
 
-// Возможные статусы для каждого продукта (в порядке прогресса)
-const STATUSES = [
-  { key: "none",              label: "Не начат",         emoji: "⚪" },
-  { key: "applied",           label: "Оформил заявку",   emoji: "📝" },
-  { key: "received",          label: "Получил карту",    emoji: "💳" },
-  { key: "cd_done",           label: "ЦД выполнено",     emoji: "✅" },
-  { key: "cd_pending",        label: "ЦД на проверке",   emoji: "🕐" },
-  { key: "cd_rejected",       label: "ЦД отклонено",     emoji: "❌" },
-  { key: "payout_requested",  label: "Запросил выплату", emoji: "💰" },
-  { key: "paid",              label: "Выплачено",        emoji: "🎉" },
-];
-
-module.exports = { PRODUCTS, STATUSES };
+module.exports = { PRODUCTS };
