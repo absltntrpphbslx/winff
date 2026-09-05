@@ -36,6 +36,27 @@ async function sendTextToAdmin(text) {
   });
 }
 
+// Утилита: отправить текст в группу (если GROUP_ID задан)
+async function sendTextToGroup(text) {
+  if (!process.env.GROUP_ID) return;
+  await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: process.env.GROUP_ID, text, parse_mode: "HTML" }),
+  });
+}
+
+// Утилита: отправить фото в группу
+async function sendPhotoToGroup(buffer, filename, caption) {
+  if (!process.env.GROUP_ID) return;
+  const formData = new FormData();
+  formData.set("chat_id", process.env.GROUP_ID);
+  formData.set("caption", caption);
+  formData.set("parse_mode", "HTML");
+  formData.set("photo", new Blob([buffer], { type: "image/jpeg" }), filename || "screenshot.jpg");
+  await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendPhoto`, { method: "POST", body: formData });
+}
+
 // ─── Загрузка данных пользователя ────────────────────────────────────
 app.post("/api/user", (req, res) => {
   const { tg_id, tg_username, tg_name } = req.body;
@@ -71,13 +92,32 @@ app.post("/api/status", (req, res) => {
   const product = PRODUCTS.find(p => p.id === parseInt(product_id));
   db.updateProductStatus({ user_id: user.id, product_id: parseInt(product_id), status });
 
-  // Уведомляем админа текстом
+  // Уведомляем админа и группу
   const labels = { applied: "📝 Оформил заявку", received: "💳 Получил карту" };
   if (labels[status] && product) {
-    sendTextToAdmin(
-      `${labels[status]}\n👤 <b>${user.tg_name}</b> (@${user.tg_username || "—"})\n📦 ${product.category} ${product.name}`
-    );
+    const text = `${labels[status]}\n👤 <b>${user.tg_name}</b> (@${user.tg_username || "—"})\n📦 ${product.category} ${product.name}`;
+    sendTextToAdmin(text);
+    sendTextToGroup(text);
   }
+
+  res.json({ ok: true });
+});
+
+// ─── Загрузить скрин заявки или карты (без апрува, только уведомление) ─
+app.post("/api/upload-step", upload.single("file"), async (req, res) => {
+  const { tg_id, product_id, status } = req.body;
+  const user = db.getUserByTgId(parseInt(tg_id));
+  if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+
+  const product = PRODUCTS.find(p => p.id === parseInt(product_id));
+  db.updateProductStatus({ user_id: user.id, product_id: parseInt(product_id), status });
+
+  const labels = { applied: "📝 Заявка оформлена", received: "💳 Карта получена" };
+  const caption = `${labels[status] || status}\n👤 ${user.tg_name} (@${user.tg_username || "—"})\n📦 ${product?.category} ${product?.name}`;
+
+  // Фото — только информационно, без кнопок апрува
+  await sendPhotoToAdmin(req.file.buffer, req.file.originalname, caption);
+  await sendPhotoToGroup(req.file.buffer, req.file.originalname, caption);
 
   res.json({ ok: true });
 });
@@ -134,9 +174,9 @@ app.post("/api/payout", (req, res) => {
   db.createPayoutRequest({ user_id: user.id, product_id: parseInt(product_id), window_num: win.number });
   db.updateProductStatus({ user_id: user.id, product_id: parseInt(product_id), status: "payout_requested" });
 
-  sendTextToAdmin(
-    `💰 <b>Запрос выплаты</b>\n👤 ${user.tg_name} (@${user.tg_username || "—"})\n📦 ${product?.category} ${product?.name}\n📅 Окно #${win.number}`
-  );
+  const payoutText = `💰 <b>Запрос выплаты</b>\n👤 ${user.tg_name} (@${user.tg_username || "—"})\n📦 ${product?.category} ${product?.name}\n📅 Окно #${win.number}`;
+  sendTextToAdmin(payoutText);
+  sendTextToGroup(payoutText);
 
   res.json({ ok: true, window: formatWindowRange(win.number) });
 });

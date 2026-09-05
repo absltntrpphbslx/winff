@@ -167,7 +167,7 @@ const tgUser  = tg.initDataUnsafe?.user || {};
 tg.ready(); tg.expand();
 
 // ── Данные ──────────────────────────────────────────────────────────
-let state = { user: null, products: [], win: null, ownedIds: new Set(), activeId: null, photoFile: null };
+let state = { user: null, products: [], win: null, ownedIds: new Set(), activeId: null, photoFile: null, stepAction: null };
 
 const ICONS = { "Дебетовая":"💳", "ИП на НПД":"🏢", "Кредитная":"💎", "Р/с":"🏦" };
 
@@ -365,12 +365,14 @@ function renderAction(p) {
 
   if (s === "none") {
     el.innerHTML = `
-      <p class="action-hint">Когда оформишь заявку — нажми кнопку ниже</p>
-      <button class="btn-action" onclick="doStatus('applied')">Оформил заявку</button>`;
+      <p class="action-hint">Оформи заявку и прикрепи скрин подтверждения</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('applied')">📎 Прикрепить скрин заявки</button>`;
   } else if (s === "applied") {
     el.innerHTML = `
-      <p class="action-hint">Когда получишь карту/счёт — нажми кнопку ниже</p>
-      <button class="btn-action" onclick="doStatus('received')">Получил карту / счёт</button>`;
+      <p class="action-hint">Получи карту/счёт и прикрепи скрин</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('received')">📎 Прикрепить скрин получения</button>`;
   } else if (s === "received") {
     el.innerHTML = `
       <p class="action-hint">Выполни ЦД и прикрепи скрин подтверждения</p>
@@ -418,6 +420,12 @@ async function doPayout() {
 }
 
 function triggerPhoto() {
+  state.stepAction = null; // это ЦД, не промежуточный шаг
+  document.getElementById("file-input").click();
+}
+
+function triggerStepPhoto(actionType) {
+  state.stepAction = actionType; // 'applied' или 'received'
   document.getElementById("file-input").click();
 }
 
@@ -426,17 +434,41 @@ function onFileSelected(input) {
   if (!file) return;
   state.photoFile = file;
 
-  // Показываем превью
   const reader = new FileReader();
   reader.onload = e => {
     const area = document.getElementById("photo-area");
     if (!area) return;
     area.innerHTML = `<img class="photo-preview" src="${e.target.result}">`;
-    // Меняем кнопку на "Отправить"
-    const btn = document.querySelector("#sh-action .btn-action");
-    if (btn) { btn.textContent = "Отправить на проверку"; btn.onclick = uploadCd; }
+
+    if (state.stepAction) {
+      // Промежуточный шаг (заявка/карта) — скрин обязателен, апрув не нужен
+      const nextStatus = state.stepAction;
+      const mainBtn = document.getElementById("btn-main-action");
+      if (mainBtn) { mainBtn.textContent = "Отправить"; mainBtn.onclick = () => uploadStep(nextStatus); }
+    } else {
+      // ЦД — кнопка "Отправить на проверку"
+      const btn = document.querySelector("#sh-action .btn-action");
+      if (btn) { btn.textContent = "Отправить на проверку"; btn.onclick = uploadCd; }
+    }
   };
   reader.readAsDataURL(file);
+}
+
+// Загрузка скрина для заявки/карты (без апрува, просто уведомление)
+async function uploadStep(status) {
+  if (!state.photoFile) return;
+  const btn = document.getElementById("btn-main-action");
+  if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
+
+  const form = new FormData();
+  form.append("tg_id", tgUser.id);
+  form.append("product_id", state.activeId);
+  form.append("status", status);
+  form.append("file", state.photoFile, state.photoFile.name);
+
+  await fetch("/api/upload-step", { method:"POST", body: form });
+  state.stepAction = null;
+  await reloadProducts();
 }
 
 async function uploadCd() {

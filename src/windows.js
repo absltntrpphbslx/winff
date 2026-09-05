@@ -64,10 +64,23 @@ function formatWindowRange(windowNumber) {
   return `${startStr} – ${endStr}`;
 }
 
+/**
+ * Проверяет — последний ли сегодня день текущего окна
+ * (для крона: в этот день в 18:00 отправляем итог выплат)
+ */
+function isLastDayOfWindow(date = new Date()) {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysFromAnchor = Math.floor((date - ANCHOR) / msPerDay);
+  if (daysFromAnchor < 0) return false;
+  // Последний день 5-дневного цикла — когда остаток от деления = 4
+  return (daysFromAnchor % WINDOW_SIZE) === (WINDOW_SIZE - 1);
+}
+
 module.exports = {
   getWindowNumber,
   getWindowDates,
   getCurrentWindow,
   getCurrentWindowEndFormatted,
   formatWindowRange,
+  isLastDayOfWindow,
 };

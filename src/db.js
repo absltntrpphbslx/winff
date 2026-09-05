@@ -146,10 +146,19 @@ function createPayoutRequest({ user_id, product_id, window_num }) {
 
 function getPayoutsByWindow(window_num) {
   return db.prepare(`
-    SELECT pr.*, u.tg_username, u.tg_name
+    SELECT pr.*, u.tg_username, u.tg_name, u.tg_id
     FROM payout_requests pr JOIN users u ON u.id = pr.user_id
     WHERE pr.window_num = @window_num ORDER BY u.tg_name
   `).all({ window_num });
+}
+
+// Получить одну заявку на выплату по ID (с данными пользователя)
+function getPayoutRequestById(id) {
+  return db.prepare(`
+    SELECT pr.*, u.tg_username, u.tg_name, u.tg_id
+    FROM payout_requests pr JOIN users u ON u.id = pr.user_id
+    WHERE pr.id = ?
+  `).get(id);
 }
 
 function markPaid({ request_id }) {
@@ -160,5 +169,5 @@ module.exports = {
   upsertUser, getUserByTgId, getAllUsers, onboardUser,
   getUserProducts, updateProductStatus,
   createCdReview, getPendingCdReviews, reviewCd,
-  createPayoutRequest, getPayoutsByWindow, markPaid,
+  createPayoutRequest, getPayoutsByWindow, getPayoutRequestById, markPaid,
 };
