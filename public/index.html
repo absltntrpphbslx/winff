@@ -1,393 +1,483 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Окно выплат</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    /* ── CSS переменные Telegram + свои ── */
-    :root {
-      --bg:      var(--tg-theme-bg-color, #ffffff);
-      --text:    var(--tg-theme-text-color, #000000);
-      --hint:    var(--tg-theme-hint-color, #999999);
-      --link:    var(--tg-theme-link-color, #2481cc);
-      --btn:     var(--tg-theme-button-color, #2481cc);
-      --btn-txt: var(--tg-theme-button-text-color, #ffffff);
-      --section: var(--tg-theme-secondary-bg-color, #f4f4f4);
-      --radius:  12px;
-    }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Кабинет</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg:      var(--tg-theme-bg-color, #fff);
+  --text:    var(--tg-theme-text-color, #000);
+  --hint:    var(--tg-theme-hint-color, #999);
+  --btn:     var(--tg-theme-button-color, #2481cc);
+  --btntxt:  var(--tg-theme-button-text-color, #fff);
+  --sec:     var(--tg-theme-secondary-bg-color, #f4f4f4);
+  --r:       12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:15px;line-height:1.4;overflow-x:hidden}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Скрины ── */
+.screen{min-height:100vh;display:flex;flex-direction:column}
+.hidden{display:none!important}
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 15px;
-      line-height: 1.4;
-      padding-bottom: 32px;
-    }
+/* ── Загрузка ── */
+#s-loading{align-items:center;justify-content:center;gap:12px;color:var(--hint)}
+.spin{width:28px;height:28px;border:3px solid var(--sec);border-top-color:var(--btn);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-    /* ── Шапка ── */
-    .header {
-      padding: 20px 16px 12px;
-      border-bottom: 1px solid var(--section);
-    }
-    .header-name {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
-    .header-window {
-      font-size: 13px;
-      color: var(--hint);
-      margin-top: 4px;
-    }
-    .window-badge {
-      display: inline-block;
-      background: var(--btn);
-      color: var(--btn-txt);
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 20px;
-      margin-right: 6px;
-    }
+/* ── Онбординг ── */
+#s-onboarding{padding:24px 16px 120px}
+.ob-hello{font-size:24px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px}
+.ob-sub{color:var(--hint);font-size:14px;margin-bottom:24px;line-height:1.5}
+.ob-cat{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+.ob-item{display:flex;align-items:center;gap:12px;background:var(--sec);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;transition:opacity .15s}
+.ob-item:active{opacity:.7}
+.ob-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--hint);flex-shrink:0;transition:.2s;display:flex;align-items:center;justify-content:center}
+.ob-check.on{background:var(--btn);border-color:var(--btn)}
+.ob-check.on::after{content:'✓';color:#fff;font-size:13px;font-weight:700}
+.ob-name{font-weight:500}
+.ob-footer{position:fixed;bottom:0;left:0;right:0;padding:12px 16px max(16px,env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--sec)}
+.btn-main{width:100%;padding:14px;background:var(--btn);color:var(--btntxt);border:none;border-radius:var(--r);font-size:16px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-main:active{opacity:.8}
+.btn-main:disabled{opacity:.5;cursor:default}
 
-    /* ── Категория продуктов ── */
-    .category {
-      padding: 16px 16px 4px;
-    }
-    .category-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--hint);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+/* ── Главный экран ── */
+#s-main{padding-bottom:32px}
+.header{padding:16px 16px 12px;display:flex;align-items:center;justify-content:space-between}
+.header-name{font-size:20px;font-weight:700;letter-spacing:-.3px}
+.win-pill{background:var(--btn);color:var(--btntxt);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.win-range{font-size:13px;color:var(--hint);margin-top:2px}
 
-    /* ── Карточка продукта ── */
-    .product-list {
-      padding: 4px 16px 0;
-    }
-    .product-card {
-      background: var(--section);
-      border-radius: var(--radius);
-      padding: 14px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .product-icon {
-      font-size: 22px;
-      width: 36px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-    .product-info {
-      flex: 1;
-      min-width: 0;
-    }
-    .product-name {
-      font-weight: 600;
-      font-size: 15px;
-    }
-    .product-status {
-      font-size: 13px;
-      color: var(--hint);
-      margin-top: 2px;
-    }
-    .product-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .btn {
-      border: none;
-      border-radius: 8px;
-      padding: 7px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s;
-      white-space: nowrap;
-    }
-    .btn:active { opacity: 0.7; }
-    .btn-primary {
-      background: var(--btn);
-      color: var(--btn-txt);
-    }
-    .btn-ghost {
-      background: transparent;
-      color: var(--btn);
-      border: 1.5px solid var(--btn);
-    }
-    .btn-disabled {
-      background: var(--section);
-      color: var(--hint);
-      cursor: default;
-    }
-    .btn-success {
-      background: #27ae60;
-      color: #fff;
-    }
+.cat-block{padding:0 16px}
+.cat-label{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;padding:16px 0 8px}
 
-    /* ── Статус-бейдж ── */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-weight: 500;
-    }
-    .badge-none      { background: #eee; color: #888; }
-    .badge-applied   { background: #dbeafe; color: #1d4ed8; }
-    .badge-received  { background: #ede9fe; color: #6d28d9; }
-    .badge-cd_pending   { background: #fef3c7; color: #b45309; }
-    .badge-cd_done      { background: #d1fae5; color: #065f46; }
-    .badge-cd_rejected  { background: #fee2e2; color: #b91c1c; }
-    .badge-payout_requested { background: #fef9c3; color: #92400e; }
-    .badge-paid      { background: #d1fae5; color: #065f46; }
+.prod-card{display:flex;align-items:center;gap:12px;background:var(--sec);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;transition:opacity .15s}
+.prod-card:active{opacity:.7}
+.prod-icon{font-size:22px;width:36px;text-align:center;flex-shrink:0}
+.prod-body{flex:1;min-width:0}
+.prod-name{font-weight:600}
+.prod-cat{font-size:12px;color:var(--hint);margin-top:1px}
+.prod-arrow{color:var(--hint);font-size:20px;flex-shrink:0}
 
-    /* ── Инструкция отправки скрина ── */
-    .tip {
-      background: var(--section);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      margin: 8px 16px 0;
-      font-size: 13px;
-      color: var(--hint);
-      line-height: 1.5;
-    }
-    .tip code {
-      background: rgba(0,0,0,0.07);
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 12px;
-    }
+/* ── Статус-пилюли ── */
+.pill{display:inline-block;font-size:12px;font-weight:500;padding:3px 9px;border-radius:20px;margin-top:4px}
+.p-none   {background:#e8e8e8;color:#666}
+.p-applied{background:#dbeafe;color:#1d4ed8}
+.p-received{background:#ede9fe;color:#6d28d9}
+.p-cd_pending{background:#fef3c7;color:#b45309}
+.p-cd_done{background:#d1fae5;color:#065f46}
+.p-cd_rejected{background:#fee2e2;color:#b91c1c}
+.p-payout_requested{background:#fef9c3;color:#92400e}
+.p-paid{background:#d1fae5;color:#065f46}
+.p-owned{background:#e8e8e8;color:#888}
 
-    /* ── Лоадер ── */
-    .loader {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 60vh;
-      font-size: 13px;
-      color: var(--hint);
-    }
+/* ── "Уже есть" секция ── */
+.owned-toggle{display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--hint);font-size:14px;cursor:pointer}
+.owned-toggle .arrow{transition:.2s;display:inline-block}
+.owned-toggle.open .arrow{transform:rotate(90deg)}
+.owned-cards{padding:0 16px}
+.prod-card.owned{opacity:.5;cursor:default}
 
-    .hidden { display: none !important; }
-  </style>
+/* ── Bottom sheet ── */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10;opacity:0;transition:opacity .2s}
+.backdrop.vis{opacity:1}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:18px 18px 0 0;z-index:11;padding:0 0 max(24px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s cubic-bezier(.32,0,.67,0)}
+.sheet.vis{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--hint);border-radius:2px;margin:12px auto 0;opacity:.4}
+.sheet-head{padding:16px 20px 12px;border-bottom:1px solid var(--sec)}
+.sheet-title{font-size:18px;font-weight:700}
+.sheet-sub{font-size:13px;color:var(--hint);margin-top:2px}
+
+/* ── Прогресс-шаги в шторке ── */
+.steps{display:flex;align-items:center;padding:16px 20px;gap:0;overflow-x:auto}
+.step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:56px}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--hint);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--hint);transition:.2s;flex-shrink:0}
+.step.done .step-circle{background:var(--btn);border-color:var(--btn);color:#fff}
+.step.active .step-circle{border-color:var(--btn);color:var(--btn)}
+.step.rejected .step-circle{background:#fee2e2;border-color:#e24b4a;color:#e24b4a}
+.step-lbl{font-size:10px;color:var(--hint);text-align:center;line-height:1.2;max-width:52px}
+.step.done .step-lbl,.step.active .step-lbl{color:var(--btn)}
+.step-line{height:2px;flex:1;background:var(--sec);margin-bottom:16px}
+.step-line.done{background:var(--btn)}
+
+/* ── Действие в шторке ── */
+.sheet-action{padding:12px 20px 0}
+.action-hint{font-size:13px;color:var(--hint);margin-bottom:10px;line-height:1.5}
+.btn-action{width:100%;padding:14px;background:var(--btn);color:var(--btntxt);border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s;margin-bottom:8px}
+.btn-action:active{opacity:.8}
+.btn-action:disabled{opacity:.5;cursor:default}
+.btn-secondary{width:100%;padding:12px;background:var(--sec);color:var(--text);border:none;border-radius:var(--r);font-size:14px;cursor:pointer;transition:opacity .15s}
+.btn-secondary:active{opacity:.7}
+.btn-success{background:#27ae60}
+
+/* ── Предпросмотр фото ── */
+.photo-preview{width:100%;height:160px;object-fit:cover;border-radius:var(--r);margin-bottom:10px;display:block}
+</style>
 </head>
 <body>
 
-<div id="loader" class="loader">Загрузка...</div>
-<div id="app" class="hidden"></div>
+<!-- Загрузка -->
+<div id="s-loading" class="screen" style="align-items:center;justify-content:center;gap:12px;color:var(--hint)">
+  <div class="spin"></div>
+  <span>Загрузка...</span>
+</div>
+
+<!-- Онбординг -->
+<div id="s-onboarding" class="screen hidden">
+  <h1 class="ob-hello" id="ob-name">Привет!</h1>
+  <p class="ob-sub">Отметь продукты, которые у тебя уже есть — они не войдут в работу</p>
+  <div id="ob-list"></div>
+  <div class="ob-footer">
+    <button class="btn-main" onclick="submitOnboarding()">Готово →</button>
+  </div>
+</div>
+
+<!-- Главный экран -->
+<div id="s-main" class="screen hidden">
+  <div class="header">
+    <div>
+      <div class="header-name" id="main-name"></div>
+      <div class="win-range" id="main-range"></div>
+    </div>
+    <div class="win-pill" id="main-win"></div>
+  </div>
+  <div id="prod-list"></div>
+</div>
+
+<!-- Шторка -->
+<div id="backdrop" class="backdrop hidden" onclick="closeSheet()"></div>
+<div id="sheet" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div class="sheet-title" id="sh-title"></div>
+    <div class="sheet-sub" id="sh-sub"></div>
+  </div>
+  <div class="steps" id="sh-steps"></div>
+  <div class="sheet-action" id="sh-action"></div>
+</div>
+
+<!-- Скрытый input для фото -->
+<input type="file" id="file-input" accept="image/*" hidden onchange="onFileSelected(this)">
 
 <script>
-// ── Иконки по категориям ──────────────────────────────────────────────
-const CATEGORY_ICONS = {
-  "Дебетовая": "💳",
-  "ИП на НПД": "🏢",
-  "Кредитная": "💎",
-  "Р/с":       "🏦",
+const tg      = window.Telegram.WebApp;
+const tgUser  = tg.initDataUnsafe?.user || {};
+tg.ready(); tg.expand();
+
+// ── Данные ──────────────────────────────────────────────────────────
+let state = { user: null, products: [], win: null, ownedIds: new Set(), activeId: null, photoFile: null };
+
+const ICONS = { "Дебетовая":"💳", "ИП на НПД":"🏢", "Кредитная":"💎", "Р/с":"🏦" };
+
+const STATUS = {
+  none:             { label:"Не начат",        cls:"p-none" },
+  applied:          { label:"Заявка",           cls:"p-applied" },
+  received:         { label:"Карта получена",   cls:"p-received" },
+  cd_pending:       { label:"ЦД на проверке",   cls:"p-cd_pending" },
+  cd_done:          { label:"ЦД подтверждено",  cls:"p-cd_done" },
+  cd_rejected:      { label:"ЦД отклонено",     cls:"p-cd_rejected" },
+  payout_requested: { label:"Выплата запрошена",cls:"p-payout_requested" },
+  paid:             { label:"Выплачено 🎉",      cls:"p-paid" },
+  owned:            { label:"Уже есть",         cls:"p-owned" },
 };
 
-// ── Статусы ───────────────────────────────────────────────────────────
-const STATUS_LABELS = {
-  none:              { label: "Не начат",          badge: "badge-none" },
-  applied:           { label: "Заявка оформлена",  badge: "badge-applied" },
-  received:          { label: "Карта получена",    badge: "badge-received" },
-  cd_pending:        { label: "ЦД на проверке",    badge: "badge-cd_pending" },
-  cd_done:           { label: "ЦД подтверждено",   badge: "badge-cd_done" },
-  cd_rejected:       { label: "ЦД отклонено",      badge: "badge-cd_rejected" },
-  payout_requested:  { label: "Выплата запрошена", badge: "badge-payout_requested" },
-  paid:              { label: "Выплачено",          badge: "badge-paid" },
-};
-
-// ── Глобальный стейт ─────────────────────────────────────────────────
-let userData = null;
-let windowData = null;
-let products = [];
-
-// ── Инициализация Telegram WebApp ────────────────────────────────────
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
-
-const tgUser = tg.initDataUnsafe?.user || {};
-
-// ── Загрузка данных с сервера ────────────────────────────────────────
-async function loadData() {
+// ── Инициализация ────────────────────────────────────────────────────
+async function init() {
   try {
-    const res = await fetch("/api/user", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tg_id:       tgUser.id || 0,
-        tg_username: tgUser.username || "",
-        tg_name:     tgUser.first_name || "Пользователь",
-      }),
+    const r = await fetch("/api/user", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ tg_id: tgUser.id||0, tg_username: tgUser.username||"", tg_name: tgUser.first_name||"Пользователь" }),
     });
+    const d = await r.json();
+    state.user = d.user; state.products = d.products; state.win = d.window;
 
-    const data = await res.json();
-    userData   = data.user;
-    products   = data.products;
-    windowData = data.window;
-
-    render();
-  } catch (e) {
-    document.getElementById("loader").textContent = "Ошибка загрузки. Попробуй снова.";
+    if (!d.user.is_onboarded) showOnboarding();
+    else showMain();
+  } catch(e) {
+    document.querySelector("#s-loading span").textContent = "Ошибка загрузки. Перезапусти.";
   }
 }
 
-// ── Запросить выплату ────────────────────────────────────────────────
-async function requestPayout(product_id) {
-  const res = await fetch("/api/payout/request", {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tg_id: tgUser.id, product_id }),
+// ── Онбординг ────────────────────────────────────────────────────────
+function showOnboarding() {
+  document.getElementById("ob-name").textContent = `Привет, ${tgUser.first_name || "там"}! 👋`;
+  const order = ["Дебетовая","ИП на НПД","Кредитная","Р/с"];
+  const groups = byCategory(state.products);
+  let html = "";
+  for (const cat of order) {
+    if (!groups[cat]) continue;
+    html += `<div class="ob-cat">${cat}</div>`;
+    for (const p of groups[cat]) {
+      html += `<div class="ob-item" onclick="toggleOb(${p.id})">
+        <div class="ob-check" id="oc${p.id}"></div>
+        <div class="ob-name">${p.name}</div>
+      </div>`;
+    }
+  }
+  document.getElementById("ob-list").innerHTML = html;
+  show("s-onboarding");
+}
+
+function toggleOb(id) {
+  if (state.ownedIds.has(id)) { state.ownedIds.delete(id); document.getElementById("oc"+id).classList.remove("on"); }
+  else { state.ownedIds.add(id); document.getElementById("oc"+id).classList.add("on"); }
+}
+
+async function submitOnboarding() {
+  const btn = document.querySelector("#s-onboarding .btn-main");
+  btn.disabled = true; btn.textContent = "Сохранение...";
+  await fetch("/api/onboard", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id, owned_product_ids: [...state.ownedIds] }),
   });
-
-  const data = await res.json();
-  if (data.ok) {
-    tg.showAlert(`💰 Выплата запрошена!\n\nОкно: ${data.window}\nОжидай выплату по окончании окна.`);
-    await loadData(); // Обновляем данные
-  }
+  await init();
 }
 
-// ── Группируем продукты по категориям ───────────────────────────────
-function groupByCategory(products) {
-  const groups = {};
-  for (const p of products) {
-    if (!groups[p.category]) groups[p.category] = [];
-    groups[p.category].push(p);
-  }
-  return groups;
+// ── Главный экран ────────────────────────────────────────────────────
+function showMain() {
+  document.getElementById("main-name").textContent = tgUser.first_name || state.user?.tg_name;
+  document.getElementById("main-win").textContent  = `#${state.win?.number}`;
+  document.getElementById("main-range").textContent = state.win?.range;
+  renderList();
+  show("s-main");
 }
 
-// ── Рендер кнопок действий для продукта ─────────────────────────────
-function renderActions(product) {
-  const s = product.status;
-
-  // Подсказка как отправить скрин
-  const makeCode = (action) => `<code>${action}:${product.id}</code>`;
-
-  if (s === "none") {
-    return `
-      <div class="tip">
-        Отправь скрин заявки боту с подписью ${makeCode("applied")}
-      </div>`;
-  }
-
-  if (s === "applied") {
-    return `
-      <div class="tip">
-        Получил карту? Отправь скрин с подписью ${makeCode("received")}
-      </div>`;
-  }
-
-  if (s === "received") {
-    return `
-      <div class="tip">
-        ЦД выполнено? Отправь скрин с подписью ${makeCode("cd")}
-      </div>`;
-  }
-
-  if (s === "cd_pending") {
-    return `<div class="tip">⏳ Ждём подтверждения от админа</div>`;
-  }
-
-  if (s === "cd_rejected") {
-    return `
-      <div class="tip">
-        ЦД отклонено. Исправь и отправь скрин снова с подписью ${makeCode("cd")}
-      </div>`;
-  }
-
-  if (s === "cd_done") {
-    return `
-      <div class="product-actions">
-        <button class="btn btn-success" onclick="requestPayout(${product.id})">
-          💰 Запросить выплату
-        </button>
-      </div>`;
-  }
-
-  if (s === "payout_requested") {
-    return `<div class="tip">✅ Выплата в очереди. Окно: ${windowData?.range}</div>`;
-  }
-
-  if (s === "paid") {
-    return `<div class="tip">🎉 Выплата получена!</div>`;
-  }
-
-  return "";
-}
-
-// ── Основной рендер ──────────────────────────────────────────────────
-function render() {
-  const groups = groupByCategory(products);
-  const name   = tgUser.first_name || userData?.tg_name || "Привет";
-
-  let html = `
-    <div class="header">
-      <div class="header-name">${name}</div>
-      <div class="header-window">
-        <span class="window-badge">#${windowData?.number}</span>
-        ${windowData?.range}
-      </div>
-    </div>
-  `;
-
-  // Порядок категорий
-  const order = ["Дебетовая", "ИП на НПД", "Кредитная", "Р/с"];
+function renderList() {
+  const active = state.products.filter(p => p.status !== "owned");
+  const owned  = state.products.filter(p => p.status === "owned");
+  const order  = ["Дебетовая","ИП на НПД","Кредитная","Р/с"];
+  const groups = byCategory(active);
+  let html = "";
 
   for (const cat of order) {
     if (!groups[cat]) continue;
-
-    html += `
-      <div class="category">
-        <div class="category-title">${cat}</div>
-      </div>
-      <div class="product-list">
-    `;
-
-    for (const product of groups[cat]) {
-      const statusInfo = STATUS_LABELS[product.status] || STATUS_LABELS.none;
-      const icon       = CATEGORY_ICONS[cat] || "📦";
-
-      html += `
-        <div class="product-card">
-          <div class="product-icon">${icon}</div>
-          <div class="product-info">
-            <div class="product-name">${product.name}</div>
-            <div class="product-status">
-              <span class="status-badge ${statusInfo.badge}">${statusInfo.label}</span>
-            </div>
-          </div>
+    html += `<div class="cat-block"><div class="cat-label">${cat}</div>`;
+    for (const p of groups[cat]) {
+      const s = STATUS[p.status] || STATUS.none;
+      html += `<div class="prod-card" onclick="openSheet(${p.id})">
+        <div class="prod-icon">${ICONS[p.category]||"📦"}</div>
+        <div class="prod-body">
+          <div class="prod-name">${p.name}</div>
+          <span class="pill ${s.cls}">${s.label}</span>
         </div>
-        ${renderActions(product)}
-      `;
+        <div class="prod-arrow">›</div>
+      </div>`;
     }
-
     html += `</div>`;
   }
 
-  document.getElementById("loader").classList.add("hidden");
-  const app = document.getElementById("app");
-  app.innerHTML = html;
-  app.classList.remove("hidden");
+  if (owned.length) {
+    html += `<div class="owned-toggle" id="owned-toggle" onclick="toggleOwned()">
+      <span class="arrow">›</span> Уже есть (${owned.length})
+    </div>
+    <div class="owned-cards hidden" id="owned-cards">`;
+    for (const p of owned) {
+      html += `<div class="prod-card owned">
+        <div class="prod-icon">${ICONS[p.category]||"📦"}</div>
+        <div class="prod-body">
+          <div class="prod-name">${p.name}</div>
+          <span class="pill p-owned">${p.category}</span>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  document.getElementById("prod-list").innerHTML = html;
 }
 
-// ── Старт ────────────────────────────────────────────────────────────
-loadData();
+function toggleOwned() {
+  const tog   = document.getElementById("owned-toggle");
+  const cards = document.getElementById("owned-cards");
+  tog.classList.toggle("open");
+  cards.classList.toggle("hidden");
+}
+
+// ── Bottom Sheet ─────────────────────────────────────────────────────
+function openSheet(productId) {
+  const p = state.products.find(x => x.id === productId);
+  if (!p || p.status === "owned") return;
+  state.activeId = productId;
+  state.photoFile = null;
+
+  document.getElementById("sh-title").textContent = `${p.name}`;
+  document.getElementById("sh-sub").textContent   = p.category;
+  renderSteps(p);
+  renderAction(p);
+
+  document.getElementById("backdrop").classList.remove("hidden");
+  document.getElementById("sheet").classList.remove("hidden");
+  requestAnimationFrame(() => {
+    document.getElementById("backdrop").classList.add("vis");
+    document.getElementById("sheet").classList.add("vis");
+  });
+}
+
+function closeSheet() {
+  document.getElementById("backdrop").classList.remove("vis");
+  document.getElementById("sheet").classList.remove("vis");
+  setTimeout(() => {
+    document.getElementById("backdrop").classList.add("hidden");
+    document.getElementById("sheet").classList.add("hidden");
+  }, 250);
+}
+
+// Шаги прогресса
+const STEP_DEFS = [
+  { key:"applied",          label:"Заявка" },
+  { key:"received",         label:"Карта" },
+  { key:"cd_done",          label:"ЦД" },
+  { key:"payout_requested", label:"Выплата" },
+];
+
+function stepState(stepKey, curStatus) {
+  const order = ["none","applied","received","cd_pending","cd_done","cd_rejected","payout_requested","paid"];
+  const stepOrder = { applied:1, received:2, cd_pending:3, cd_done:3, cd_rejected:3, payout_requested:4, paid:4 };
+  const curLevel  = stepOrder[curStatus] || 0;
+  const stepLevel = stepOrder[stepKey]   || 0;
+
+  if (curStatus === "cd_rejected" && stepKey === "cd_done") return "rejected";
+  if (curLevel > stepLevel) return "done";
+  if (curLevel === stepLevel) return "active";
+  return "";
+}
+
+function renderSteps(p) {
+  let html = "";
+  STEP_DEFS.forEach((step, i) => {
+    const st = stepState(step.key, p.status);
+    const icon = st === "done" ? "✓" : st === "rejected" ? "✕" : (i+1);
+    if (i > 0) html += `<div class="step-line ${st === "done" || (st === "active" && i > 0) ? "done" : ""}"></div>`;
+    html += `<div class="step ${st}">
+      <div class="step-circle">${icon}</div>
+      <div class="step-lbl">${step.label}</div>
+    </div>`;
+  });
+  document.getElementById("sh-steps").innerHTML = html;
+}
+
+// Кнопки действий
+function renderAction(p) {
+  const el  = document.getElementById("sh-action");
+  const s   = p.status;
+
+  if (s === "none") {
+    el.innerHTML = `
+      <p class="action-hint">Когда оформишь заявку — нажми кнопку ниже</p>
+      <button class="btn-action" onclick="doStatus('applied')">Оформил заявку</button>`;
+  } else if (s === "applied") {
+    el.innerHTML = `
+      <p class="action-hint">Когда получишь карту/счёт — нажми кнопку ниже</p>
+      <button class="btn-action" onclick="doStatus('received')">Получил карту / счёт</button>`;
+  } else if (s === "received") {
+    el.innerHTML = `
+      <p class="action-hint">Выполни ЦД и прикрепи скрин подтверждения</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" onclick="triggerPhoto()">📎 Прикрепить скрин ЦД</button>`;
+  } else if (s === "cd_pending") {
+    el.innerHTML = `<p class="action-hint" style="text-align:center;padding:12px 0">⏳ Ожидаем подтверждения от админа</p>`;
+  } else if (s === "cd_rejected") {
+    el.innerHTML = `
+      <p class="action-hint">ЦД отклонено. Исправь и загрузи новый скрин</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" onclick="triggerPhoto()">📎 Загрузить новый скрин</button>`;
+  } else if (s === "cd_done") {
+    el.innerHTML = `
+      <p class="action-hint">ЦД подтверждено ✅ Запроси выплату — она войдёт в окно ${state.win?.range}</p>
+      <button class="btn-action btn-success" onclick="doPayout()">💰 Запросить выплату</button>`;
+  } else if (s === "payout_requested") {
+    el.innerHTML = `<p class="action-hint" style="text-align:center;padding:12px 0">💰 Выплата запрошена<br><span style="color:var(--hint)">Окно: ${state.win?.range}</span></p>`;
+  } else if (s === "paid") {
+    el.innerHTML = `<p class="action-hint" style="text-align:center;padding:16px 0;font-size:20px">🎉 Выплачено!</p>`;
+  }
+}
+
+// ── Действия ─────────────────────────────────────────────────────────
+async function doStatus(status) {
+  const btn = document.querySelector("#sh-action .btn-action");
+  if (btn) { btn.disabled = true; btn.textContent = "..."; }
+
+  await fetch("/api/status", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id, product_id: state.activeId, status }),
+  });
+  await reloadProducts();
+}
+
+async function doPayout() {
+  const btn = document.querySelector("#sh-action .btn-action");
+  if (btn) { btn.disabled = true; btn.textContent = "..."; }
+
+  await fetch("/api/payout", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id, product_id: state.activeId }),
+  });
+  await reloadProducts();
+}
+
+function triggerPhoto() {
+  document.getElementById("file-input").click();
+}
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  state.photoFile = file;
+
+  // Показываем превью
+  const reader = new FileReader();
+  reader.onload = e => {
+    const area = document.getElementById("photo-area");
+    if (!area) return;
+    area.innerHTML = `<img class="photo-preview" src="${e.target.result}">`;
+    // Меняем кнопку на "Отправить"
+    const btn = document.querySelector("#sh-action .btn-action");
+    if (btn) { btn.textContent = "Отправить на проверку"; btn.onclick = uploadCd; }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadCd() {
+  if (!state.photoFile) return;
+  const btn = document.querySelector("#sh-action .btn-action");
+  if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
+
+  const form = new FormData();
+  form.append("tg_id", tgUser.id);
+  form.append("product_id", state.activeId);
+  form.append("file", state.photoFile, state.photoFile.name);
+
+  await fetch("/api/upload-cd", { method:"POST", body: form });
+  await reloadProducts();
+}
+
+async function reloadProducts() {
+  const r = await fetch("/api/user", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id||0, tg_username: tgUser.username||"", tg_name: tgUser.first_name||"" }),
+  });
+  const d = await r.json();
+  state.products = d.products;
+  state.win      = d.window;
+  renderList();
+  closeSheet();
+  document.getElementById("file-input").value = "";
+}
+
+// ── Утилиты ──────────────────────────────────────────────────────────
+function byCategory(products) {
+  const g = {};
+  for (const p of products) { if (!g[p.category]) g[p.category]=[]; g[p.category].push(p); }
+  return g;
+}
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+init();
 </script>
 </body>
 </html>
