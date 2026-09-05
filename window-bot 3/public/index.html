@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Кабинет</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg:      var(--tg-theme-bg-color, #fff);
+  --text:    var(--tg-theme-text-color, #000);
+  --hint:    var(--tg-theme-hint-color, #999);
+  --btn:     var(--tg-theme-button-color, #2481cc);
+  --btntxt:  var(--tg-theme-button-text-color, #fff);
+  --sec:     var(--tg-theme-secondary-bg-color, #f4f4f4);
+  --r:       12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:15px;line-height:1.4;overflow-x:hidden}
+
+/* ── Скрины ── */
+.screen{min-height:100vh;display:flex;flex-direction:column}
+.hidden{display:none!important}
+
+/* ── Загрузка ── */
+#s-loading{align-items:center;justify-content:center;gap:12px;color:var(--hint)}
+.spin{width:28px;height:28px;border:3px solid var(--sec);border-top-color:var(--btn);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Онбординг ── */
+#s-onboarding{padding:24px 16px 120px}
+.ob-hello{font-size:24px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px}
+.ob-sub{color:var(--hint);font-size:14px;margin-bottom:24px;line-height:1.5}
+.ob-cat{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+.ob-item{display:flex;align-items:center;gap:12px;background:var(--sec);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;transition:opacity .15s}
+.ob-item:active{opacity:.7}
+.ob-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--hint);flex-shrink:0;transition:.2s;display:flex;align-items:center;justify-content:center}
+.ob-check.on{background:var(--btn);border-color:var(--btn)}
+.ob-check.on::after{content:'✓';color:#fff;font-size:13px;font-weight:700}
+.ob-name{font-weight:500}
+.ob-footer{position:fixed;bottom:0;left:0;right:0;padding:12px 16px max(16px,env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--sec)}
+.btn-main{width:100%;padding:14px;background:var(--btn);color:var(--btntxt);border:none;border-radius:var(--r);font-size:16px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-main:active{opacity:.8}
+.btn-main:disabled{opacity:.5;cursor:default}
+
+/* ── Главный экран ── */
+#s-main{padding-bottom:32px}
+.header{padding:16px 16px 12px;display:flex;align-items:center;justify-content:space-between}
+.header-name{font-size:20px;font-weight:700;letter-spacing:-.3px}
+.win-pill{background:var(--btn);color:var(--btntxt);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.win-range{font-size:13px;color:var(--hint);margin-top:2px}
+
+.cat-block{padding:0 16px}
+.cat-label{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;padding:16px 0 8px}
+
+.prod-card{display:flex;align-items:center;gap:12px;background:var(--sec);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;transition:opacity .15s}
+.prod-card:active{opacity:.7}
+.prod-icon{font-size:22px;width:36px;text-align:center;flex-shrink:0}
+.prod-body{flex:1;min-width:0}
+.prod-name{font-weight:600}
+.prod-cat{font-size:12px;color:var(--hint);margin-top:1px}
+.prod-arrow{color:var(--hint);font-size:20px;flex-shrink:0}
+
+/* ── Статус-пилюли ── */
+.pill{display:inline-block;font-size:12px;font-weight:500;padding:3px 9px;border-radius:20px;margin-top:4px}
+.p-none   {background:#e8e8e8;color:#666}
+.p-applied{background:#dbeafe;color:#1d4ed8}
+.p-received{background:#ede9fe;color:#6d28d9}
+.p-cd_pending{background:#fef3c7;color:#b45309}
+.p-cd_done{background:#d1fae5;color:#065f46}
+.p-cd_rejected{background:#fee2e2;color:#b91c1c}
+.p-payout_requested{background:#fef9c3;color:#92400e}
+.p-paid{background:#d1fae5;color:#065f46}
+.p-owned{background:#e8e8e8;color:#888}
+.p-declined{background:#fee2e2;color:#b91c1c}
+
+/* ── "Уже есть" секция ── */
+.owned-toggle{display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--hint);font-size:14px;cursor:pointer}
+.owned-toggle .arrow{transition:.2s;display:inline-block}
+.owned-toggle.open .arrow{transform:rotate(90deg)}
+.owned-cards{padding:0 16px}
+.prod-card.owned{opacity:.5;cursor:default}
+
+/* ── Bottom sheet ── */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10;opacity:0;transition:opacity .2s}
+.backdrop.vis{opacity:1}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:18px 18px 0 0;z-index:11;padding:0 0 max(24px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s cubic-bezier(.32,0,.67,0)}
+.sheet.vis{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--hint);border-radius:2px;margin:12px auto 0;opacity:.4}
+.sheet-head{padding:16px 20px 12px;border-bottom:1px solid var(--sec)}
+.sheet-title{font-size:18px;font-weight:700}
+.sheet-sub{font-size:13px;color:var(--hint);margin-top:2px}
+
+/* ── Прогресс-шаги в шторке ── */
+.steps{display:flex;align-items:center;padding:16px 20px;gap:0;overflow-x:auto}
+.step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:56px}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--hint);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--hint);transition:.2s;flex-shrink:0}
+.step.done .step-circle{background:var(--btn);border-color:var(--btn);color:#fff}
+.step.active .step-circle{border-color:var(--btn);color:var(--btn)}
+.step.rejected .step-circle{background:#fee2e2;border-color:#e24b4a;color:#e24b4a}
+.step-lbl{font-size:10px;color:var(--hint);text-align:center;line-height:1.2;max-width:52px}
+.step.done .step-lbl,.step.active .step-lbl{color:var(--btn)}
+.step-line{height:2px;flex:1;background:var(--sec);margin-bottom:16px}
+.step-line.done{background:var(--btn)}
+
+/* ── Действие в шторке ── */
+.sheet-action{padding:12px 20px 0}
+.action-hint{font-size:13px;color:var(--hint);margin-bottom:10px;line-height:1.5}
+.btn-action{width:100%;padding:14px;background:var(--btn);color:var(--btntxt);border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s;margin-bottom:8px}
+.btn-action:active{opacity:.8}
+.btn-action:disabled{opacity:.5;cursor:default}
+.btn-secondary{width:100%;padding:12px;background:var(--sec);color:var(--text);border:none;border-radius:var(--r);font-size:14px;cursor:pointer;transition:opacity .15s}
+.btn-secondary:active{opacity:.7}
+.btn-success{background:#27ae60}
+.btn-decline{width:100%;padding:11px;background:transparent;color:#e24b4a;border:1.5px solid #e24b4a;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;transition:opacity .15s}
+.btn-decline:active{opacity:.7}
+
+/* ── Предпросмотр фото ── */
+.photo-preview{width:100%;height:160px;object-fit:cover;border-radius:var(--r);margin-bottom:10px;display:block}
+</style>
+</head>
+<body>
+
+<!-- Загрузка -->
+<div id="s-loading" class="screen" style="align-items:center;justify-content:center;gap:12px;color:var(--hint)">
+  <div class="spin"></div>
+  <span>Загрузка...</span>
+</div>
+
+<!-- Онбординг -->
+<div id="s-onboarding" class="screen hidden">
+  <h1 class="ob-hello" id="ob-name">Привет!</h1>
+  <p class="ob-sub">Отметь продукты, которые у тебя уже есть — они не войдут в работу</p>
+  <div id="ob-list"></div>
+  <div class="ob-footer">
+    <button class="btn-main" onclick="submitOnboarding()">Готово →</button>
+  </div>
+</div>
+
+<!-- Главный экран -->
+<div id="s-main" class="screen hidden">
+  <div class="header">
+    <div>
+      <div class="header-name" id="main-name"></div>
+      <div class="win-range" id="main-range"></div>
+    </div>
+    <div class="win-pill" id="main-win"></div>
+  </div>
+  <div id="prod-list"></div>
+</div>
+
+<!-- Шторка -->
+<div id="backdrop" class="backdrop hidden" onclick="closeSheet()"></div>
+<div id="sheet" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div class="sheet-title" id="sh-title"></div>
+    <div class="sheet-sub" id="sh-sub"></div>
+  </div>
+  <div class="steps" id="sh-steps"></div>
+  <div class="sheet-action" id="sh-action"></div>
+</div>
+
+<!-- Скрытый input для фото -->
+<input type="file" id="file-input" accept="image/*" hidden onchange="onFileSelected(this)">
+
+<script>
+const tg      = window.Telegram.WebApp;
+const tgUser  = tg.initDataUnsafe?.user || {};
+tg.ready(); tg.expand();
+
+// ── Данные ──────────────────────────────────────────────────────────
+let state = { user: null, products: [], win: null, ownedIds: new Set(), activeId: null, photoFile: null, stepAction: null };
+
+const ICONS = { "Дебетовая":"💳", "ИП на НПД":"🏢", "Кредитная":"💎", "Р/с":"🏦" };
+
+const STATUS = {
+  none:             { label:"Не начат",        cls:"p-none" },
+  applied:          { label:"Заявка",           cls:"p-applied" },
+  received:         { label:"Карта получена",   cls:"p-received" },
+  cd_pending:       { label:"ЦД на проверке",   cls:"p-cd_pending" },
+  cd_done:          { label:"ЦД подтверждено",  cls:"p-cd_done" },
+  cd_rejected:      { label:"ЦД отклонено",     cls:"p-cd_rejected" },
+  payout_requested: { label:"Выплата запрошена",cls:"p-payout_requested" },
+  paid:             { label:"Выплачено 🎉",      cls:"p-paid" },
+  owned:            { label:"Уже есть",         cls:"p-owned" },
+  declined:         { label:"Отказ банка",      cls:"p-declined" },
+};
+
+// ── Инициализация ────────────────────────────────────────────────────
+async function init() {
+  try {
+    const r = await fetch("/api/user", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ tg_id: tgUser.id||0, tg_username: tgUser.username||"", tg_name: tgUser.first_name||"Пользователь" }),
+    });
+    const d = await r.json();
+    state.user = d.user; state.products = d.products; state.win = d.window;
+
+    if (!d.user.is_onboarded) showOnboarding();
+    else showMain();
+  } catch(e) {
+    document.querySelector("#s-loading span").textContent = "Ошибка загрузки. Перезапусти.";
+  }
+}
+
+// ── Онбординг ────────────────────────────────────────────────────────
+function showOnboarding() {
+  document.getElementById("ob-name").textContent = `Привет, ${tgUser.first_name || "там"}! 👋`;
+  const order = ["Дебетовая","ИП на НПД","Кредитная","Р/с"];
+  const groups = byCategory(state.products);
+  let html = "";
+  for (const cat of order) {
+    if (!groups[cat]) continue;
+    html += `<div class="ob-cat">${cat}</div>`;
+    for (const p of groups[cat]) {
+      html += `<div class="ob-item" onclick="toggleOb(${p.id})">
+        <div class="ob-check" id="oc${p.id}"></div>
+        <div class="ob-name">${p.name}</div>
+      </div>`;
+    }
+  }
+  document.getElementById("ob-list").innerHTML = html;
+  show("s-onboarding");
+}
+
+function toggleOb(id) {
+  if (state.ownedIds.has(id)) { state.ownedIds.delete(id); document.getElementById("oc"+id).classList.remove("on"); }
+  else { state.ownedIds.add(id); document.getElementById("oc"+id).classList.add("on"); }
+}
+
+async function submitOnboarding() {
+  const btn = document.querySelector("#s-onboarding .btn-main");
+  btn.disabled = true; btn.textContent = "Сохранение...";
+  await fetch("/api/onboard", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id, owned_product_ids: [...state.ownedIds] }),
+  });
+  await init();
+}
+
+// ── Главный экран ────────────────────────────────────────────────────
+function showMain() {
+  document.getElementById("main-name").textContent = tgUser.first_name || state.user?.tg_name;
+  document.getElementById("main-win").textContent  = `#${state.win?.number}`;
+  document.getElementById("main-range").textContent = state.win?.range;
+  renderList();
+  show("s-main");
+}
+
+function renderList() {
+  const active   = state.products.filter(p => p.status !== "owned" && p.status !== "declined");
+  const owned    = state.products.filter(p => p.status === "owned");
+  const declined = state.products.filter(p => p.status === "declined");
+  const order  = ["Дебетовая","ИП на НПД","Кредитная","Р/с"];
+  const groups = byCategory(active);
+  let html = "";
+
+  for (const cat of order) {
+    if (!groups[cat]) continue;
+    html += `<div class="cat-block"><div class="cat-label">${cat}</div>`;
+    for (const p of groups[cat]) {
+      const s = STATUS[p.status] || STATUS.none;
+      html += `<div class="prod-card" onclick="openSheet(${p.id})">
+        <div class="prod-icon">${ICONS[p.category]||"📦"}</div>
+        <div class="prod-body">
+          <div class="prod-name">${p.name}</div>
+          <span class="pill ${s.cls}">${s.label}</span>
+        </div>
+        <div class="prod-arrow">›</div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (declined.length) {
+    html += `
+      <div class="owned-toggle" id="declined-toggle" onclick="toggleDeclined()">
+        <span class="arrow">›</span> Отказ банка (${declined.length})
+      </div>
+      <div class="owned-cards hidden" id="declined-cards">`;
+    for (const p of declined) {
+      html += `<div class="prod-card owned">
+        <div class="prod-icon">${ICONS[p.category]||"📦"}</div>
+        <div class="prod-body">
+          <div class="prod-name">${p.name}</div>
+          <span class="pill p-declined">${p.category}</span>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (owned.length) {
+    html += `<div class="owned-toggle" id="owned-toggle" onclick="toggleOwned()">
+      <span class="arrow">›</span> Уже есть (${owned.length})
+    </div>
+    <div class="owned-cards hidden" id="owned-cards">`;
+    for (const p of owned) {
+      html += `<div class="prod-card owned">
+        <div class="prod-icon">${ICONS[p.category]||"📦"}</div>
+        <div class="prod-body">
+          <div class="prod-name">${p.name}</div>
+          <span class="pill p-owned">${p.category}</span>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  document.getElementById("prod-list").innerHTML = html;
+}
+
+function toggleDeclined() {
+  const tog   = document.getElementById("declined-toggle");
+  const cards = document.getElementById("declined-cards");
+  tog.classList.toggle("open");
+  cards.classList.toggle("hidden");
+}
+
+function toggleOwned() {
+  const tog   = document.getElementById("owned-toggle");
+  const cards = document.getElementById("owned-cards");
+  tog.classList.toggle("open");
+  cards.classList.toggle("hidden");
+}
+
+// ── Bottom Sheet ─────────────────────────────────────────────────────
+function openSheet(productId) {
+  const p = state.products.find(x => x.id === productId);
+  if (!p || p.status === "owned" || p.status === "declined") return;
+  state.activeId = productId;
+  state.photoFile = null;
+
+  document.getElementById("sh-title").textContent = `${p.name}`;
+  document.getElementById("sh-sub").textContent   = p.category;
+  renderSteps(p);
+  renderAction(p);
+
+  document.getElementById("backdrop").classList.remove("hidden");
+  document.getElementById("sheet").classList.remove("hidden");
+  requestAnimationFrame(() => {
+    document.getElementById("backdrop").classList.add("vis");
+    document.getElementById("sheet").classList.add("vis");
+  });
+}
+
+function closeSheet() {
+  document.getElementById("backdrop").classList.remove("vis");
+  document.getElementById("sheet").classList.remove("vis");
+  setTimeout(() => {
+    document.getElementById("backdrop").classList.add("hidden");
+    document.getElementById("sheet").classList.add("hidden");
+  }, 250);
+}
+
+// Шаги прогресса
+const STEP_DEFS = [
+  { key:"applied",          label:"Заявка" },
+  { key:"received",         label:"Карта" },
+  { key:"cd_done",          label:"ЦД" },
+  { key:"payout_requested", label:"Выплата" },
+];
+
+function stepState(stepKey, curStatus) {
+  const order = ["none","applied","received","cd_pending","cd_done","cd_rejected","payout_requested","paid"];
+  const stepOrder = { applied:1, received:2, cd_pending:3, cd_done:3, cd_rejected:3, payout_requested:4, paid:4 };
+  const curLevel  = stepOrder[curStatus] || 0;
+  const stepLevel = stepOrder[stepKey]   || 0;
+
+  if (curStatus === "cd_rejected" && stepKey === "cd_done") return "rejected";
+  if (curLevel > stepLevel) return "done";
+  if (curLevel === stepLevel) return "active";
+  return "";
+}
+
+function renderSteps(p) {
+  let html = "";
+  STEP_DEFS.forEach((step, i) => {
+    const st = stepState(step.key, p.status);
+    const icon = st === "done" ? "✓" : st === "rejected" ? "✕" : (i+1);
+    if (i > 0) html += `<div class="step-line ${st === "done" || (st === "active" && i > 0) ? "done" : ""}"></div>`;
+    html += `<div class="step ${st}">
+      <div class="step-circle">${icon}</div>
+      <div class="step-lbl">${step.label}</div>
+    </div>`;
+  });
+  document.getElementById("sh-steps").innerHTML = html;
+}
+
+// Кнопка отказа — показывается на всех активных этапах кроме финальных
+function declineBtn() {
+  return `<button class="btn-decline" onclick="doDecline()">❌ Отказ банка</button>`;
+}
+
+// Кнопки действий
+function renderAction(p) {
+  const el  = document.getElementById("sh-action");
+  const s   = p.status;
+
+  if (s === "none") {
+    el.innerHTML = `
+      <p class="action-hint">Оформи заявку и прикрепи скрин подтверждения</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('applied')">📎 Прикрепить скрин заявки</button>
+      ${declineBtn()}`;
+  } else if (s === "applied") {
+    el.innerHTML = `
+      <p class="action-hint">Получи карту/счёт и прикрепи скрин</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" id="btn-main-action" onclick="triggerStepPhoto('received')">📎 Прикрепить скрин получения</button>
+      ${declineBtn()}`;
+  } else if (s === "received") {
+    el.innerHTML = `
+      <p class="action-hint">Выполни ЦД и прикрепи скрин подтверждения</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" onclick="triggerPhoto()">📎 Прикрепить скрин ЦД</button>
+      ${declineBtn()}`;
+  } else if (s === "cd_pending") {
+    el.innerHTML = `
+      <p class="action-hint" style="text-align:center;padding:12px 0">⏳ Ожидаем подтверждения от админа</p>
+      ${declineBtn()}`;
+  } else if (s === "cd_rejected") {
+    el.innerHTML = `
+      <p class="action-hint">ЦД отклонено. Исправь и загрузи новый скрин</p>
+      <div id="photo-area"></div>
+      <button class="btn-action" onclick="triggerPhoto()">📎 Загрузить новый скрин</button>
+      ${declineBtn()}`;
+  } else if (s === "cd_done") {
+    el.innerHTML = `
+      <p class="action-hint">ЦД подтверждено ✅ Запроси выплату — она войдёт в окно ${state.win?.range}</p>
+      <button class="btn-action btn-success" onclick="doPayout()">💰 Запросить выплату</button>`;
+  } else if (s === "payout_requested") {
+    el.innerHTML = `<p class="action-hint" style="text-align:center;padding:12px 0">💰 Выплата запрошена<br><span style="color:var(--hint)">Окно: ${state.win?.range}</span></p>`;
+  } else if (s === "paid") {
+    el.innerHTML = `<p class="action-hint" style="text-align:center;padding:16px 0;font-size:20px">🎉 Выплачено!</p>`;
+  }
+}
+
+// ── Действия ─────────────────────────────────────────────────────────
+async function doDecline() {
+  tg.showConfirm("Отметить как отказ банка? Продукт будет заблокирован.", async (confirmed) => {
+    if (!confirmed) return;
+    await fetch("/api/status", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ tg_id: tgUser.id, product_id: state.activeId, status: "declined" }),
+    });
+    await reloadProducts();
+  });
+}
+
+async function doStatus(status) {
+  const btn = document.querySelector("#sh-action .btn-action");
+  if (btn) { btn.disabled = true; btn.textContent = "..."; }
+
+  await fetch("/api/status", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id, product_id: state.activeId, status }),
+  });
+  await reloadProducts();
+}
+
+async function doPayout() {
+  const btn = document.querySelector("#sh-action .btn-action");
+  if (btn) { btn.disabled = true; btn.textContent = "..."; }
+
+  await fetch("/api/payout", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id, product_id: state.activeId }),
+  });
+  await reloadProducts();
+}
+
+function triggerPhoto() {
+  state.stepAction = null; // это ЦД, не промежуточный шаг
+  document.getElementById("file-input").click();
+}
+
+function triggerStepPhoto(actionType) {
+  state.stepAction = actionType; // 'applied' или 'received'
+  document.getElementById("file-input").click();
+}
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  state.photoFile = file;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const area = document.getElementById("photo-area");
+    if (!area) return;
+    area.innerHTML = `<img class="photo-preview" src="${e.target.result}">`;
+
+    if (state.stepAction) {
+      // Промежуточный шаг (заявка/карта) — скрин обязателен, апрув не нужен
+      const nextStatus = state.stepAction;
+      const mainBtn = document.getElementById("btn-main-action");
+      if (mainBtn) { mainBtn.textContent = "Отправить"; mainBtn.onclick = () => uploadStep(nextStatus); }
+    } else {
+      // ЦД — кнопка "Отправить на проверку"
+      const btn = document.querySelector("#sh-action .btn-action");
+      if (btn) { btn.textContent = "Отправить на проверку"; btn.onclick = uploadCd; }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// Загрузка скрина для заявки/карты (без апрува, просто уведомление)
+async function uploadStep(status) {
+  if (!state.photoFile) return;
+  const btn = document.getElementById("btn-main-action");
+  if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
+
+  const form = new FormData();
+  form.append("tg_id", tgUser.id);
+  form.append("product_id", state.activeId);
+  form.append("status", status);
+  form.append("file", state.photoFile, state.photoFile.name);
+
+  await fetch("/api/upload-step", { method:"POST", body: form });
+  state.stepAction = null;
+  await reloadProducts();
+}
+
+async function uploadCd() {
+  if (!state.photoFile) return;
+  const btn = document.querySelector("#sh-action .btn-action");
+  if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
+
+  const form = new FormData();
+  form.append("tg_id", tgUser.id);
+  form.append("product_id", state.activeId);
+  form.append("file", state.photoFile, state.photoFile.name);
+
+  await fetch("/api/upload-cd", { method:"POST", body: form });
+  await reloadProducts();
+}
+
+async function reloadProducts() {
+  const r = await fetch("/api/user", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tg_id: tgUser.id||0, tg_username: tgUser.username||"", tg_name: tgUser.first_name||"" }),
+  });
+  const d = await r.json();
+  state.products = d.products;
+  state.win      = d.window;
+  renderList();
+  closeSheet();
+  document.getElementById("file-input").value = "";
+}
+
+// ── Утилиты ──────────────────────────────────────────────────────────
+function byCategory(products) {
+  const g = {};
+  for (const p of products) { if (!g[p.category]) g[p.category]=[]; g[p.category].push(p); }
+  return g;
+}
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+init();
+</script>
+</body>
+</html>
